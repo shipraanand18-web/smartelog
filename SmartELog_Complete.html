@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Smart E-Log – Aatma Smart Fleet</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0f;--sidebar:#111118;--card:#16161f;--card2:#1c1c28;
+  --border:rgba(255,255,255,0.08);--accent:#6366f1;--accent2:#8b5cf6;
+  --green:#10b981;--red:#ef4444;--amber:#f59e0b;--blue:#3b82f6;
+  --text:#f0f0f5;--muted:rgba(255,255,255,0.45);--muted2:rgba(255,255,255,0.2)
+}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;overflow-x:hidden}
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+@keyframes glow{0%,100%{box-shadow:0 0 10px rgba(99,102,241,0.3)}50%{box-shadow:0 0 25px rgba(99,102,241,0.6)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+.fade-up{animation:fadeUp 0.5s ease both}
+.delay-1{animation-delay:0.1s}.delay-2{animation-delay:0.2s}.delay-3{animation-delay:0.3s}.delay-4{animation-delay:0.4s}
+
+/* ===== LOGIN ===== */
+#login-page{
+  position:fixed;inset:0;background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);
+  display:flex;align-items:center;justify-content:center;z-index:1000;
+}
+.orb{position:absolute;border-radius:50%;filter:blur(60px);pointer-events:none}
+.login-card{
+  background:rgba(255,255,255,0.05);backdrop-filter:blur(24px);
+  border:1px solid rgba(255,255,255,0.1);border-radius:24px;
+  padding:40px;width:420px;max-width:95vw;
+  box-shadow:0 25px 60px rgba(0,0,0,0.6);animation:fadeUp 0.6s ease;
+}
+.logo-box{
+  width:60px;height:60px;border-radius:16px;
+  background:linear-gradient(135deg,#6366f1,#8b5cf6);
+  display:flex;align-items:center;justify-content:center;font-size:28px;
+  margin:0 auto 12px;animation:glow 3s ease-in-out infinite;
+}
+.tabs{display:flex;gap:4px;background:rgba(255,255,255,0.05);border-radius:10px;padding:4px;margin-bottom:24px}
+.tab{flex:1;padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:500;transition:all 0.3s;background:none}
+.tab.active{background:rgba(129,140,248,0.25);color:#818cf8}
+.tab.inactive{color:rgba(255,255,255,0.45)}
+.inp{
+  width:100%;background:rgba(255,255,255,0.07);border:1.5px solid rgba(255,255,255,0.12);
+  border-radius:12px;padding:13px 16px;color:#fff;font-size:15px;
+  outline:none;transition:all 0.3s
+}
+.inp:focus{border-color:#818cf8;background:rgba(129,140,248,0.1);box-shadow:0 0 0 3px rgba(129,140,248,0.2)}
+.inp::placeholder{color:rgba(255,255,255,0.35)}
+.pass-wrap{position:relative}
+.eye-btn{
+  position:absolute;right:12px;top:50%;transform:translateY(-50%);
+  background:none;border:none;cursor:pointer;color:rgba(255,255,255,0.45);
+  display:flex;align-items:center;transition:color 0.2s
+}
+.eye-btn:hover{color:#818cf8}
+.btn-primary{
+  width:100%;padding:14px;background:linear-gradient(135deg,#6366f1,#8b5cf6);
+  border:none;border-radius:12px;color:#fff;font-size:16px;font-weight:600;
+  cursor:pointer;transition:all 0.3s;letter-spacing:0.4px
+}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(99,102,241,0.45)}
+.btn-primary:active{transform:translateY(0)}
+.err-msg{
+  background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);
+  border-radius:10px;padding:10px 14px;color:#fca5a5;font-size:13px;margin-bottom:14px
+}
+
+/* ===== MAIN LAYOUT ===== */
+#app{display:none;min-height:100vh}
+#app.visible{display:flex}
+
+/* ===== SIDEBAR ===== */
+.sidebar{
+  width:220px;min-height:100vh;background:var(--sidebar);
+  border-right:1px solid var(--border);display:flex;flex-direction:column;
+  position:fixed;top:0;left:0;z-index:100;transition:transform 0.3s
+}
+.brand{padding:20px 16px 16px;border-bottom:1px solid var(--border)}
+.brand-icon{
+  width:40px;height:40px;border-radius:10px;
+  background:linear-gradient(135deg,#6366f1,#8b5cf6);
+  display:flex;align-items:center;justify-content:center;font-size:18px;
+  margin-bottom:8px;animation:glow 4s ease-in-out infinite
+}
+.brand h2{font-size:16px;font-weight:700;color:var(--text)}
+.brand p{font-size:10px;color:var(--muted);margin-top:2px}
+.nav{flex:1;padding:12px 8px;display:flex;flex-direction:column;gap:4px}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;
+  border-radius:10px;cursor:pointer;transition:all 0.25s;
+  color:var(--muted);font-size:14px;font-weight:500;border:none;
+  background:none;width:100%;text-align:left
+}
+.nav-item:hover{background:rgba(255,255,255,0.05);color:var(--text)}
+.nav-item.active{background:rgba(99,102,241,0.18);color:#818cf8}
+.nav-item .icon{font-size:16px;width:20px;text-align:center}
+.sidebar-footer{padding:12px 8px;border-top:1px solid var(--border)}
+
+/* ===== CONTENT ===== */
+.content{margin-left:220px;flex:1;min-height:100vh;padding:24px}
+.page{display:none}
+.page.active{display:block;animation:fadeUp 0.4s ease}
+.page-header{margin-bottom:24px}
+.page-header h1{font-size:26px;font-weight:700;margin-bottom:4px}
+.page-header p{color:var(--muted);font-size:14px}
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.date-range{
+  background:var(--card);border:1px solid var(--border);border-radius:10px;
+  padding:6px 12px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px
+}
+
+/* ===== STAT CARDS ===== */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:24px}
+.stat-card{
+  background:var(--card);border:1px solid var(--border);border-radius:14px;
+  padding:18px 16px;transition:all 0.3s;cursor:default
+}
+.stat-card:hover{border-color:rgba(99,102,241,0.4);transform:translateY(-2px)}
+.stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px}
+.stat-val{font-size:24px;font-weight:700;margin-bottom:4px}
+.stat-sub{font-size:11px;color:var(--muted)}
+.stat-dot{
+  width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px
+}
+
+/* ===== CHARTS ===== */
+.charts-grid{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:24px}
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px}
+.chart-title{font-size:14px;font-weight:600;margin-bottom:16px;color:var(--text)}
+@media(max-width:768px){.charts-grid{grid-template-columns:1fr}}
+
+/* ===== TABLE ===== */
+.table-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:20px}
+.table-header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:16px 20px;border-bottom:1px solid var(--border)
+}
+.table-header h3{font-size:14px;font-weight:600}
+table{width:100%;border-collapse:collapse}
+th{
+  padding:10px 16px;text-align:left;font-size:11px;font-weight:600;
+  color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;
+  border-bottom:1px solid var(--border);background:rgba(255,255,255,0.02)
+}
+td{padding:12px 16px;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.04)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,0.025)}
+
+/* ===== BADGES ===== */
+.badge{
+  display:inline-block;padding:3px 10px;border-radius:20px;
+  font-size:11px;font-weight:600;letter-spacing:0.3px
+}
+.badge-green{background:rgba(16,185,129,0.15);color:#34d399}
+.badge-red{background:rgba(239,68,68,0.15);color:#f87171}
+.badge-amber{background:rgba(245,158,11,0.15);color:#fbbf24}
+.badge-blue{background:rgba(59,130,246,0.15);color:#60a5fa}
+.badge-purple{background:rgba(139,92,246,0.15);color:#a78bfa}
+
+/* ===== SEARCH & FORM ===== */
+.search-bar{
+  display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center
+}
+.search-inp{
+  flex:1;min-width:200px;background:var(--card);border:1px solid var(--border);
+  border-radius:10px;padding:9px 14px;color:var(--text);font-size:14px;outline:none
+}
+.search-inp:focus{border-color:var(--accent)}
+.search-inp::placeholder{color:var(--muted)}
+.btn{
+  padding:9px 16px;border-radius:10px;border:none;cursor:pointer;
+  font-size:13px;font-weight:600;transition:all 0.25s
+}
+.btn-add{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff}
+.btn-add:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(99,102,241,0.4)}
+.btn-edit{background:rgba(59,130,246,0.15);color:#60a5fa}
+.btn-del{background:rgba(239,68,68,0.12);color:#f87171}
+.btn-edit:hover{background:rgba(59,130,246,0.25)}
+.btn-del:hover{background:rgba(239,68,68,0.25)}
+.btn-sm{padding:5px 12px;font-size:12px}
+
+/* ===== MODAL ===== */
+.modal-bg{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);
+  backdrop-filter:blur(4px);z-index:500;align-items:center;justify-content:center
+}
+.modal-bg.open{display:flex}
+.modal{
+  background:var(--card2);border:1px solid var(--border);border-radius:20px;
+  padding:28px;width:500px;max-width:95vw;max-height:90vh;overflow-y:auto;
+  animation:fadeUp 0.35s ease
+}
+.modal h3{font-size:18px;font-weight:700;margin-bottom:20px;color:var(--text)}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-group.full{grid-column:1/-1}
+.form-label{font-size:12px;color:var(--muted);font-weight:500}
+.form-inp{
+  background:rgba(255,255,255,0.06);border:1px solid var(--border);
+  border-radius:10px;padding:10px 14px;color:var(--text);font-size:14px;
+  outline:none;transition:all 0.25s
+}
+.form-inp:focus{border-color:var(--accent);background:rgba(99,102,241,0.08)}
+.form-inp::placeholder{color:var(--muted)}
+select.form-inp option{background:#1c1c28;color:#fff}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+
+/* ===== TRACKING ===== */
+.map-placeholder{
+  background:var(--card);border:1px solid var(--border);border-radius:14px;
+  height:400px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;margin-bottom:20px
+}
+.map-grid{
+  position:absolute;inset:0;
+  background-image:linear-gradient(rgba(99,102,241,0.05) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(99,102,241,0.05) 1px,transparent 1px);
+  background-size:40px 40px
+}
+.map-vehicle{
+  position:absolute;cursor:pointer;text-align:center;
+  transition:transform 0.3s;animation:float 3s ease-in-out infinite
+}
+.map-vehicle:hover{transform:scale(1.2)!important}
+.map-label{
+  background:var(--card2);border:1px solid var(--border);border-radius:6px;
+  padding:2px 6px;font-size:10px;color:var(--text);white-space:nowrap;margin-top:2px
+}
+.vehicle-list-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.vehicle-mini{
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:14px;cursor:pointer;transition:all 0.25s
+}
+.vehicle-mini:hover{border-color:var(--accent);transform:translateY(-2px)}
+.vehicle-mini.active-v{border-color:rgba(16,185,129,0.5);background:rgba(16,185,129,0.05)}
+
+/* ===== ALERTS ===== */
+.alert-item{
+  display:flex;align-items:center;gap:12px;padding:12px 16px;
+  border-radius:10px;border-left:3px solid;margin-bottom:8px
+}
+.alert-item.critical{background:rgba(239,68,68,0.08);border-color:#ef4444}
+.alert-item.warning{background:rgba(245,158,11,0.08);border-color:#f59e0b}
+.alert-item.info{background:rgba(59,130,246,0.08);border-color:#3b82f6}
+
+/* ===== USER AVATAR ===== */
+.avatar{
+  width:36px;height:36px;border-radius:50%;
+  background:linear-gradient(135deg,#6366f1,#ec4899);
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;font-weight:700;color:#fff;cursor:pointer;flex-shrink:0
+}
+
+/* ===== MOBILE ===== */
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .content{margin-left:0;padding:16px}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .charts-grid{grid-template-columns:1fr}
+  .form-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== LOGIN PAGE ===== -->
+<div id="login-page">
+  <div class="orb" style="width:350px;height:350px;background:rgba(99,102,241,0.15);top:-10%;left:-10%"></div>
+  <div class="orb" style="width:250px;height:250px;background:rgba(168,85,247,0.12);bottom:10%;right:5%"></div>
+  <div class="orb" style="width:200px;height:200px;background:rgba(16,185,129,0.08);top:60%;left:60%"></div>
+
+  <div class="login-card">
+    <div style="text-align:center;margin-bottom:28px">
+      <div class="logo-box">🚛</div>
+      <h1 style="font-size:22px;font-weight:700;margin-bottom:4px">Smart E-Log</h1>
+      <p style="color:rgba(255,255,255,0.45);font-size:12px">Aatma Smart Fleet Pvt. Ltd.</p>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" id="tab-login" onclick="switchTab('login')">🔐 Login</button>
+      <button class="tab inactive" id="tab-reg" onclick="switchTab('reg')">✨ New Registration</button>
+    </div>
+
+    <div id="login-err" class="err-msg" style="display:none"></div>
+
+    <!-- LOGIN FIELDS -->
+    <div id="login-fields" style="display:flex;flex-direction:column;gap:12px">
+      <input class="inp" id="l-email" type="email" placeholder="Email Address" value="owner@fleet.com"/>
+      <div class="pass-wrap">
+        <input class="inp" id="l-pass" type="password" placeholder="Password" value="fleet123" style="padding-right:44px"/>
+        <button class="eye-btn" onclick="togglePass('l-pass',this)">
+          <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+      <button class="btn-primary" onclick="doLogin()">🔐 Login as Owner</button>
+      <p style="text-align:center;color:rgba(255,255,255,0.35);font-size:11px;margin-top:4px">Demo: owner@fleet.com / fleet123</p>
+    </div>
+
+    <!-- REGISTER FIELDS -->
+    <div id="reg-fields" style="display:none;flex-direction:column;gap:12px">
+      <input class="inp" id="r-name" placeholder="Pura Naam (Full Name)"/>
+      <input class="inp" id="r-company" placeholder="Company / Organization Name"/>
+      <input class="inp" id="r-phone" type="tel" placeholder="Phone Number"/>
+      <input class="inp" id="r-email" type="email" placeholder="Email Address"/>
+      <div class="pass-wrap">
+        <input class="inp" id="r-pass" type="password" placeholder="Password" style="padding-right:44px"/>
+        <button class="eye-btn" onclick="togglePass('r-pass',this)">
+          <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+      <div class="pass-wrap">
+        <input class="inp" id="r-cpass" type="password" placeholder="Confirm Password" style="padding-right:44px"/>
+        <button class="eye-btn" onclick="togglePass('r-cpass',this)">
+          <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+      <button class="btn-primary" onclick="doRegister()">🚀 Register karo</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MAIN APP ===== -->
+<div id="app">
+  <!-- SIDEBAR -->
+  <nav class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-icon">🚛</div>
+      <h2>Smart E-Log</h2>
+      <p id="sb-company">Aatma Smart Fleet</p>
+    </div>
+    <div class="nav">
+      <button class="nav-item active" onclick="showPage('dashboard',this)"><span class="icon">📊</span>Dashboard</button>
+      <button class="nav-item" onclick="showPage('earnings',this)"><span class="icon">💰</span>Earnings</button>
+      <button class="nav-item" onclick="showPage('tracking',this)"><span class="icon">🗺️</span>Vehicle Tracking</button>
+      <button class="nav-item" onclick="showPage('drivers',this)"><span class="icon">👤</span>Drivers</button>
+      <button class="nav-item" onclick="showPage('vehicles',this)"><span class="icon">🚌</span>Vehicles</button>
+      <button class="nav-item" onclick="showPage('alerts',this)"><span class="icon">🔔</span>Alerts</button>
+    </div>
+    <div class="sidebar-footer">
+      <button class="nav-item" onclick="logout()" style="color:var(--red)"><span class="icon">🚪</span>Logout</button>
+    </div>
+  </nav>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <!-- DASHBOARD PAGE -->
+    <div class="page active" id="page-dashboard">
+      <div class="topbar">
+        <div class="page-header" style="margin-bottom:0">
+          <h1>Dashboard</h1>
+          <p id="dash-welcome">Welcome, Shipra. Track your fleet in style.</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="date-range">📅 01-04-2026 → 17-04-2026</div>
+          <div class="avatar" id="user-avatar">S</div>
+        </div>
+      </div>
+      <div style="height:20px"></div>
+
+      <div class="stats-grid">
+        <div class="stat-card fade-up">
+          <div class="stat-label">Total Vehicles</div>
+          <div class="stat-val" style="color:#818cf8">8</div>
+          <div class="stat-sub">🚌 Fleet active</div>
+        </div>
+        <div class="stat-card fade-up delay-1">
+          <div class="stat-label">Active Trips</div>
+          <div class="stat-val" style="color:#34d399">4</div>
+          <div class="stat-sub"><span class="stat-dot" style="background:#34d399;animation:pulse 1.5s infinite"></span>Live</div>
+        </div>
+        <div class="stat-card fade-up delay-2">
+          <div class="stat-label">Revenue (Range)</div>
+          <div class="stat-val" style="color:#fbbf24">₹1,28,339</div>
+          <div class="stat-sub">↑ 12% this month</div>
+        </div>
+        <div class="stat-card fade-up delay-3">
+          <div class="stat-label">Pending Amount</div>
+          <div class="stat-val" style="color:#f87171">₹45,377</div>
+          <div class="stat-sub">Unpaid trips</div>
+        </div>
+        <div class="stat-card fade-up delay-4">
+          <div class="stat-label">Drivers On Duty</div>
+          <div class="stat-val" style="color:#60a5fa">7</div>
+          <div class="stat-sub">Active today</div>
+        </div>
+        <div class="stat-card fade-up delay-4">
+          <div class="stat-label">Maintenance Due</div>
+          <div class="stat-val" style="color:#f87171">3</div>
+          <div class="stat-sub">⚠️ Urgent</div>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card fade-up">
+          <div class="chart-title">Revenue Trend</div>
+          <canvas id="revenueChart" height="180"></canvas>
+        </div>
+        <div class="chart-card fade-up delay-2">
+          <div class="chart-title">Vehicle Health</div>
+          <canvas id="healthChart" height="180"></canvas>
+        </div>
+      </div>
+
+      <!-- Open Alerts -->
+      <div class="table-card fade-up">
+        <div class="table-header">
+          <h3>🔔 Open Alerts</h3>
+          <span class="badge badge-red">3 Critical</span>
+        </div>
+        <table>
+          <thead><tr><th>Type</th><th>Vehicle</th><th>Driver</th><th>Message</th><th>Severity</th></tr></thead>
+          <tbody>
+            <tr><td>Overspeeding</td><td>BR01PU1005</td><td>Rajan Kumar</td><td>Speed: 95 km/h in 60 zone</td><td><span class="badge badge-red">Critical</span></td></tr>
+            <tr><td>Insurance Due</td><td>BR01PU1008</td><td>—</td><td>Expires in 5 days</td><td><span class="badge badge-amber">Warning</span></td></tr>
+            <tr><td>Route Deviation</td><td>BR01PU1002</td><td>Suresh M.</td><td>Off designated route</td><td><span class="badge badge-amber">Warning</span></td></tr>
+            <tr><td>Maintenance</td><td>BR01PU1001</td><td>—</td><td>Service overdue 1500 km</td><td><span class="badge badge-red">Critical</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- EARNINGS PAGE -->
+    <div class="page" id="page-earnings">
+      <div class="page-header">
+        <h1>💰 Earnings</h1>
+        <p>Vehicle-wise financial summary</p>
+      </div>
+      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
+        <div class="stat-card"><div class="stat-label">Collected</div><div class="stat-val" style="color:#34d399">₹1,28,339</div></div>
+        <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-val" style="color:#f87171">₹45,377</div></div>
+        <div class="stat-card"><div class="stat-label">Transactions</div><div class="stat-val" style="color:#818cf8">84</div></div>
+      </div>
+      <div class="table-card fade-up">
+        <div class="table-header"><h3>Vehicle-wise Financial Summary</h3></div>
+        <table>
+          <thead><tr><th>Vehicle</th><th>Model</th><th>Collected</th><th>Pending</th><th>Transactions</th><th>Payment Mode</th></tr></thead>
+          <tbody id="earnings-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- VEHICLE TRACKING PAGE -->
+    <div class="page" id="page-tracking">
+      <div class="page-header"><h1>🗺️ Vehicle Tracking</h1><p>Real-time fleet location monitor</p></div>
+      <div class="search-bar">
+        <input class="search-inp" id="track-search" placeholder="🔍 Registration No. / Vehicle Name search karo..." oninput="filterTracking()"/>
+        <select class="search-inp" id="track-type" onchange="filterTracking()" style="max-width:200px">
+          <option value="">All Types</option>
+          <option>Tempo Traveller</option><option>Bus</option><option>Trucks</option><option>Cabs</option><option>Auto</option><option>Bikes</option>
+        </select>
+        <button class="btn btn-add" onclick="refreshMap()">🔄 Refresh Map</button>
+      </div>
+
+      <!-- World Map Placeholder -->
+      <div class="map-placeholder" id="world-map">
+        <div class="map-grid"></div>
+        <div style="position:absolute;top:10px;left:14px;font-size:11px;color:var(--muted)">🌍 Live Fleet Map – World View</div>
+        <div id="map-vehicles"></div>
+        <div style="position:absolute;bottom:12px;right:14px;display:flex;gap:8px;font-size:11px">
+          <span><span style="color:#34d399">●</span> Active</span>
+          <span><span style="color:#f87171">●</span> Idle</span>
+          <span><span style="color:#fbbf24">●</span> Maintenance</span>
+        </div>
+      </div>
+
+      <h3 style="margin-bottom:12px;font-size:14px;color:var(--muted)">Fleet Vehicles</h3>
+      <div class="vehicle-list-grid" id="tracking-vehicles"></div>
+    </div>
+
+    <!-- DRIVERS PAGE -->
+    <div class="page" id="page-drivers">
+      <div class="page-header"><h1>👤 Drivers</h1><p>Manage your fleet drivers</p></div>
+      <div class="search-bar">
+        <input class="search-inp" id="driver-search" placeholder="🔍 Name, License, Phone se search karo..." oninput="renderDrivers()"/>
+        <button class="btn btn-add" onclick="openDriverModal()">➕ Add Driver</button>
+      </div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Driver ID</th><th>Name</th><th>License No.</th><th>Phone</th><th>Employment ID</th><th>Experience</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="drivers-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- VEHICLES PAGE -->
+    <div class="page" id="page-vehicles">
+      <div class="page-header"><h1>🚌 Vehicles</h1><p>Manage your fleet vehicles</p></div>
+      <div class="search-bar">
+        <input class="search-inp" id="veh-search" placeholder="🔍 Reg. No., Model ya Name se search karo..." oninput="renderVehicles()"/>
+        <select class="search-inp" id="veh-type-filter" onchange="renderVehicles()" style="max-width:180px">
+          <option value="">All Types</option>
+          <option>Bus</option><option>Tempo Traveller</option><option>Truck</option><option>Cab</option>
+        </select>
+        <button class="btn btn-add" onclick="openVehicleModal()">➕ Add Vehicle</button>
+      </div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Reg. No.</th><th>Model</th><th>Type</th><th>Insurance Expiry</th><th>PUC Expiry</th><th>Fitness Cert.</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="vehicles-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ALERTS PAGE -->
+    <div class="page" id="page-alerts">
+      <div class="page-header"><h1>🔔 Alerts</h1><p>System warnings and notifications</p></div>
+      <div id="alerts-container"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===== DRIVER MODAL ===== -->
+<div class="modal-bg" id="driver-modal">
+  <div class="modal">
+    <h3 id="driver-modal-title">➕ Add New Driver</h3>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Full Name *</label><input class="form-inp" id="d-name" placeholder="Driver ka naam"/></div>
+      <div class="form-group"><label class="form-label">License Number *</label><input class="form-inp" id="d-license" placeholder="DL-2024-XXXXXXX"/></div>
+      <div class="form-group"><label class="form-label">Phone Number *</label><input class="form-inp" id="d-phone" type="tel" placeholder="+91 XXXXX XXXXX"/></div>
+      <div class="form-group"><label class="form-label">Employment ID</label><input class="form-inp" id="d-empid" placeholder="EMP-001"/></div>
+      <div class="form-group"><label class="form-label">Experience (Years)</label><input class="form-inp" id="d-exp" type="number" placeholder="5"/></div>
+      <div class="form-group"><label class="form-label">Status</label>
+        <select class="form-inp" id="d-status"><option>Active</option><option>On-trip</option><option>Off Duty</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Aadhar / ID Number</label><input class="form-inp" id="d-aadhar" placeholder="XXXX XXXX XXXX"/></div>
+      <div class="form-group"><label class="form-label">License Expiry</label><input class="form-inp" id="d-lic-exp" type="date"/></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" style="background:rgba(255,255,255,0.08);color:var(--muted)" onclick="closeModal('driver-modal')">Cancel</button>
+      <button class="btn btn-add" onclick="saveDriver()">💾 Save Driver</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== VEHICLE MODAL ===== -->
+<div class="modal-bg" id="vehicle-modal">
+  <div class="modal">
+    <h3 id="vehicle-modal-title">➕ Add New Vehicle</h3>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Registration No. *</label><input class="form-inp" id="v-regno" placeholder="BR01PU1009"/></div>
+      <div class="form-group"><label class="form-label">Model *</label><input class="form-inp" id="v-model" placeholder="Tata Starbus"/></div>
+      <div class="form-group"><label class="form-label">Vehicle Type</label>
+        <select class="form-inp" id="v-type"><option>Bus</option><option>Tempo Traveller</option><option>Truck</option><option>Cab</option><option>Auto</option><option>Bike</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Number Plate No.</label><input class="form-inp" id="v-plate" placeholder="BR 01 PU 1009"/></div>
+      <div class="form-group"><label class="form-label">Insurance Expiry</label><input class="form-inp" id="v-ins" type="date"/></div>
+      <div class="form-group"><label class="form-label">PUC Expiry</label><input class="form-inp" id="v-puc" type="date"/></div>
+      <div class="form-group"><label class="form-label">Fitness Cert. Expiry</label><input class="form-inp" id="v-fit" type="date"/></div>
+      <div class="form-group"><label class="form-label">Status</label>
+        <select class="form-inp" id="v-status"><option>Idle</option><option>On Trip</option><option>Under Maintenance</option></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" style="background:rgba(255,255,255,0.08);color:var(--muted)" onclick="closeModal('vehicle-modal')">Cancel</button>
+      <button class="btn btn-add" onclick="saveVehicle()">💾 Save Vehicle</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== DATA =====
+let currentUser = null;
+let editDriverId = null;
+let editVehicleId = null;
+
+let drivers = [
+  {id:1,name:"Rajan Kumar",license:"DL-2021-012345",phone:"9801234567",empid:"EMP-001",exp:8,status:"On-trip",aadhar:"1234 5678 9012",licexp:"2026-12-31"},
+  {id:2,name:"Suresh Mahato",license:"DL-2019-056789",phone:"9712345678",empid:"EMP-002",exp:12,status:"Active",aadhar:"9876 5432 1098",licexp:"2027-06-15"},
+  {id:3,name:"Amit Verma",license:"DL-2022-098765",phone:"8801234567",empid:"EMP-003",exp:5,status:"Active",aadhar:"5678 1234 9012",licexp:"2028-03-20"},
+  {id:4,name:"Deepak Singh",license:"DL-2020-034567",phone:"7712345678",empid:"EMP-004",exp:7,status:"On-trip",aadhar:"3456 7890 1234",licexp:"2025-11-30"},
+  {id:5,name:"Rohit Prasad",license:"DL-2018-078901",phone:"9901234567",empid:"EMP-005",exp:15,status:"Off Duty",aadhar:"7890 1234 5678",licexp:"2026-08-10"},
+];
+
+let vehicles = [
+  {id:1,regno:"BR01PU1005",model:"Tempo Traveller",type:"Tempo Traveller",plate:"BR 01 PU 1005",ins:"2026-10-15",puc:"2026-04-30",fit:"2027-01-20",status:"On Trip",lat:25,lng:65},
+  {id:2,regno:"BR01PU1004",model:"Force Traveller",type:"Tempo Traveller",plate:"BR 01 PU 1004",ins:"2026-08-22",puc:"2026-05-15",fit:"2026-12-10",status:"On Trip",lat:30,lng:78},
+  {id:3,regno:"BR01PU1007",model:"Maruti Ertiga",type:"Cab",plate:"BR 01 PU 1007",ins:"2027-02-10",puc:"2026-06-20",fit:"2027-05-15",status:"Idle",lat:20,lng:55},
+  {id:4,regno:"BR01PU1002",model:"Ashok Leyland",type:"Bus",plate:"BR 01 PU 1002",ins:"2026-12-05",puc:"2026-07-10",fit:"2027-03-25",status:"On Trip",lat:35,lng:72},
+  {id:5,regno:"BR01PU1006",model:"Mahindra Bolero",type:"Cab",plate:"BR 01 PU 1006",ins:"2026-09-18",puc:"2026-05-28",fit:"2026-11-30",status:"Idle",lat:15,lng:85},
+  {id:6,regno:"BR01PU1001",model:"Tata Starbus",type:"Bus",plate:"BR 01 PU 1001",ins:"2025-06-30",puc:"2026-08-15",fit:"2026-10-05",status:"Under Maintenance",lat:28,lng:60},
+  {id:7,regno:"BR01PU1003",model:"Eicher Skyline",type:"Bus",plate:"BR 01 PU 1003",ins:"2027-04-12",puc:"2026-09-20",fit:"2027-06-18",status:"On Trip",lat:22,lng:80},
+  {id:8,regno:"BR01PU1008",model:"Toyota Innova",type:"Cab",plate:"BR 01 PU 1008",ins:"2026-04-23",puc:"2026-10-05",fit:"2027-02-28",status:"Idle",lat:18,lng:70},
+];
+
+const earningsData = [
+  {v:"BR01PU1005",m:"Tempo Traveller",c:19269,p:7145,t:12},
+  {v:"BR01PU1004",m:"Force Traveller",c:18853,p:7011,t:12},
+  {v:"BR01PU1007",m:"Maruti Ertiga",c:18807,p:6834,t:12},
+  {v:"BR01PU1002",m:"Ashok Leyland",c:18700,p:6205,t:12},
+  {v:"BR01PU1006",m:"Mahindra Bolero",c:18448,p:5850,t:12},
+  {v:"BR01PU1001",m:"Tata Starbus",c:17643,p:6169,t:12},
+  {v:"BR01PU1003",m:"Eicher Skyline",c:16619,p:6163,t:12},
+  {v:"BR01PU1008",m:"Toyota Innova",c:0,p:0,t:0},
+];
+
+const alertsData = [
+  {type:"Overspeeding",vehicle:"BR01PU1005",driver:"Rajan Kumar",msg:"Speed 95 km/h in 60 km/h zone – National Highway 33",sev:"critical",time:"10 mins ago"},
+  {type:"Maintenance Due",vehicle:"BR01PU1001",driver:"—",msg:"Service overdue by 1,500 km. Last serviced: 2026-02-15",sev:"critical",time:"1 hour ago"},
+  {type:"Insurance Expiry",vehicle:"BR01PU1008",driver:"—",msg:"Insurance expires in 5 days (2026-04-23)",sev:"warning",time:"3 hours ago"},
+  {type:"Route Deviation",vehicle:"BR01PU1002",driver:"Suresh Mahato",msg:"Vehicle deviated 8 km from planned route",sev:"warning",time:"25 mins ago"},
+  {type:"PUC Expiry",vehicle:"BR01PU1005",driver:"—",msg:"PUC certificate expires in 12 days",sev:"warning",time:"6 hours ago"},
+  {type:"Low Fuel",vehicle:"BR01PU1007",driver:"Amit Verma",msg:"Fuel level below 15%. Nearest pump: 12 km",sev:"info",time:"45 mins ago"},
+];
+
+// ===== LOGIN =====
+function switchTab(tab) {
+  document.getElementById('tab-login').className = 'tab ' + (tab==='login'?'active':'inactive');
+  document.getElementById('tab-reg').className = 'tab ' + (tab==='reg'?'active':'inactive');
+  document.getElementById('login-fields').style.display = tab==='login'?'flex':'none';
+  document.getElementById('reg-fields').style.display = tab==='reg'?'flex':'none';
+  document.getElementById('login-err').style.display = 'none';
+}
+function togglePass(id, btn) {
+  const inp = document.getElementById(id);
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  btn.innerHTML = show
+    ? `<svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17.94 17.94A10 10 0 0 1 12 20c-7 0-11-8-11-8a18 18 0 0 1 5.06-5.94M9.9 4.24A9 9 0 0 1 12 4c7 0 11 8 11 8a18 18 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`
+    : `<svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+}
+function showErr(msg) {
+  const el = document.getElementById('login-err');
+  el.textContent = '⚠️ ' + msg; el.style.display = 'block';
+}
+function doLogin() {
+  const email = document.getElementById('l-email').value;
+  const pass = document.getElementById('l-pass').value;
+  if (email === 'owner@fleet.com' && pass === 'fleet123') {
+    loginUser({name:'Shipra',email,company:'Aatma Smart Fleet Pvt. Ltd.'});
+  } else { showErr('Email ya password galat hai!'); }
+}
+function doRegister() {
+  const name = document.getElementById('r-name').value;
+  const company = document.getElementById('r-company').value;
+  const phone = document.getElementById('r-phone').value;
+  const email = document.getElementById('r-email').value;
+  const pass = document.getElementById('r-pass').value;
+  const cpass = document.getElementById('r-cpass').value;
+  if (!name||!company||!phone||!email||!pass) { showErr('Sab fields fill karo!'); return; }
+  if (pass !== cpass) { showErr('Password match nahi kar raha!'); return; }
+  loginUser({name,email,company});
+}
+function loginUser(user) {
+  currentUser = user;
+  document.getElementById('login-page').style.display = 'none';
+  document.getElementById('app').classList.add('visible');
+  document.getElementById('dash-welcome').textContent = `Welcome, ${user.name}. Track your fleet in style.`;
+  document.getElementById('sb-company').textContent = user.company || 'Smart Fleet';
+  document.getElementById('user-avatar').textContent = user.name[0].toUpperCase();
+  initCharts(); renderEarnings(); renderDrivers(); renderVehicles();
+  renderAlerts(); renderTracking();
+}
+function logout() {
+  currentUser = null;
+  document.getElementById('login-page').style.display = 'flex';
+  document.getElementById('app').classList.remove('visible');
+}
+
+// ===== NAVIGATION =====
+function showPage(page, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  if (btn) btn.classList.add('active');
+}
+
+// ===== CHARTS =====
+function initCharts() {
+  const rCtx = document.getElementById('revenueChart').getContext('2d');
+  new Chart(rCtx, {
+    type: 'bar',
+    data: {
+      labels: ['Apr 1','Apr 3','Apr 5','Apr 7','Apr 9','Apr 11','Apr 13','Apr 15','Apr 17'],
+      datasets: [{
+        label: 'Revenue (₹)',
+        data: [13500,12800,14200,15800,13200,15465,12500,13900,12200],
+        backgroundColor: ['#6366f1','#8b5cf6','#ec4899','#f59e0b','#10b981','#3b82f6','#6366f1','#8b5cf6','#ec4899'],
+        borderRadius: 6, borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive:true, plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'₹'+c.raw.toLocaleString('en-IN')}}},
+      scales:{x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'rgba(255,255,255,0.45)',font:{size:10}}},
+               y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'rgba(255,255,255,0.45)',font:{size:10}}}}
+    }
+  });
+  const hCtx = document.getElementById('healthChart').getContext('2d');
+  new Chart(hCtx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Healthy','Maintenance Due','On Trip'],
+      datasets: [{data:[4,3,1],backgroundColor:['#10b981','#f59e0b','#3b82f6'],borderWidth:0,hoverOffset:6}]
+    },
+    options: {responsive:true,plugins:{legend:{position:'bottom',labels:{color:'rgba(255,255,255,0.6)',font:{size:11},padding:12}}}}
+  });
+}
+
+// ===== EARNINGS =====
+function renderEarnings() {
+  document.getElementById('earnings-tbody').innerHTML = earningsData.map(e => `
+    <tr>
+      <td style="font-weight:600;color:#818cf8">${e.v}</td>
+      <td>${e.m}</td>
+      <td style="color:#34d399;font-weight:600">₹${e.c.toLocaleString('en-IN')}</td>
+      <td style="color:#f87171">₹${e.p.toLocaleString('en-IN')}</td>
+      <td><span class="badge badge-blue">${e.t}</span></td>
+      <td><span class="badge badge-purple">Cash/Digital</span></td>
+    </tr>`).join('');
+}
+
+// ===== DRIVERS =====
+function renderDrivers() {
+  const q = document.getElementById('driver-search').value.toLowerCase();
+  const filtered = drivers.filter(d =>
+    d.name.toLowerCase().includes(q) || d.license.toLowerCase().includes(q) || d.phone.includes(q) || (d.empid||'').toLowerCase().includes(q)
+  );
+  document.getElementById('drivers-tbody').innerHTML = filtered.length ? filtered.map(d => `
+    <tr>
+      <td style="color:#818cf8;font-weight:600">${d.empid||'—'}</td>
+      <td><strong>${d.name}</strong></td>
+      <td style="font-family:monospace;font-size:12px">${d.license}</td>
+      <td>📱 ${d.phone}</td>
+      <td>${d.empid}</td>
+      <td>${d.exp} yrs</td>
+      <td><span class="badge ${d.status==='Active'?'badge-green':d.status==='On-trip'?'badge-blue':'badge-amber'}">${d.status}</span></td>
+      <td style="display:flex;gap:6px;padding:8px 16px">
+        <button class="btn btn-edit btn-sm" onclick="editDriver(${d.id})">✏️ Edit</button>
+        <button class="btn btn-del btn-sm" onclick="deleteDriver(${d.id})">🗑️</button>
+      </td>
+    </tr>`).join('') : '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:30px">Koi driver nahi mila</td></tr>';
+}
+function openDriverModal(id) {
+  editDriverId = null;
+  ['d-name','d-license','d-phone','d-empid','d-exp','d-aadhar'].forEach(x => document.getElementById(x).value = '');
+  document.getElementById('d-status').value = 'Active';
+  document.getElementById('driver-modal-title').textContent = '➕ Add New Driver';
+  document.getElementById('driver-modal').classList.add('open');
+}
+function editDriver(id) {
+  const d = drivers.find(x => x.id === id);
+  editDriverId = id;
+  document.getElementById('d-name').value = d.name;
+  document.getElementById('d-license').value = d.license;
+  document.getElementById('d-phone').value = d.phone;
+  document.getElementById('d-empid').value = d.empid||'';
+  document.getElementById('d-exp').value = d.exp;
+  document.getElementById('d-status').value = d.status;
+  document.getElementById('d-aadhar').value = d.aadhar||'';
+  document.getElementById('d-lic-exp').value = d.licexp||'';
+  document.getElementById('driver-modal-title').textContent = '✏️ Edit Driver';
+  document.getElementById('driver-modal').classList.add('open');
+}
+function saveDriver() {
+  const name = document.getElementById('d-name').value.trim();
+  const license = document.getElementById('d-license').value.trim();
+  const phone = document.getElementById('d-phone').value.trim();
+  if (!name||!license||!phone) { alert('Name, License aur Phone mandatory hai!'); return; }
+  const obj = {
+    name, license, phone,
+    empid: document.getElementById('d-empid').value||'EMP-00'+(drivers.length+1),
+    exp: parseInt(document.getElementById('d-exp').value)||0,
+    status: document.getElementById('d-status').value,
+    aadhar: document.getElementById('d-aadhar').value,
+    licexp: document.getElementById('d-lic-exp').value,
+  };
+  if (editDriverId) {
+    const i = drivers.findIndex(d => d.id === editDriverId);
+    drivers[i] = {...drivers[i],...obj};
+  } else {
+    drivers.push({id:Date.now(),...obj});
+  }
+  closeModal('driver-modal'); renderDrivers();
+}
+function deleteDriver(id) {
+  if (confirm('Is driver ko delete karna chahte ho?')) { drivers = drivers.filter(d => d.id !== id); renderDrivers(); }
+}
+
+// ===== VEHICLES =====
+function renderVehicles() {
+  const q = document.getElementById('veh-search').value.toLowerCase();
+  const tf = document.getElementById('veh-type-filter').value;
+  const filtered = vehicles.filter(v =>
+    (v.regno.toLowerCase().includes(q)||v.model.toLowerCase().includes(q)||v.plate.toLowerCase().includes(q)) &&
+    (!tf || v.type === tf)
+  );
+  document.getElementById('vehicles-tbody').innerHTML = filtered.length ? filtered.map(v => {
+    const insDate = new Date(v.ins); const today = new Date();
+    const daysDiff = Math.ceil((insDate-today)/(1000*60*60*24));
+    const insBadge = daysDiff<30?'badge-red':daysDiff<90?'badge-amber':'badge-green';
+    return `<tr>
+      <td style="color:#818cf8;font-weight:600">${v.regno}</td>
+      <td><strong>${v.model}</strong></td>
+      <td><span class="badge badge-purple">${v.type}</span></td>
+      <td><span class="badge ${insBadge}">${v.ins}</span></td>
+      <td>${v.puc}</td>
+      <td>${v.fit}</td>
+      <td><span class="badge ${v.status==='On Trip'?'badge-blue':v.status==='Idle'?'badge-green':'badge-red'}">${v.status}</span></td>
+      <td style="display:flex;gap:6px;padding:8px 16px">
+        <button class="btn btn-edit btn-sm" onclick="editVehicle(${v.id})">✏️</button>
+        <button class="btn btn-del btn-sm" onclick="deleteVehicle(${v.id})">🗑️</button>
+      </td>
+    </tr>`;}).join('') : '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:30px">Koi vehicle nahi mila</td></tr>';
+}
+function openVehicleModal() {
+  editVehicleId = null;
+  ['v-regno','v-model','v-plate','v-ins','v-puc','v-fit'].forEach(x => document.getElementById(x).value = '');
+  document.getElementById('v-type').value = 'Bus';
+  document.getElementById('v-status').value = 'Idle';
+  document.getElementById('vehicle-modal-title').textContent = '➕ Add New Vehicle';
+  document.getElementById('vehicle-modal').classList.add('open');
+}
+function editVehicle(id) {
+  const v = vehicles.find(x => x.id === id);
+  editVehicleId = id;
+  document.getElementById('v-regno').value = v.regno;
+  document.getElementById('v-model').value = v.model;
+  document.getElementById('v-type').value = v.type;
+  document.getElementById('v-plate').value = v.plate;
+  document.getElementById('v-ins').value = v.ins;
+  document.getElementById('v-puc').value = v.puc;
+  document.getElementById('v-fit').value = v.fit;
+  document.getElementById('v-status').value = v.status;
+  document.getElementById('vehicle-modal-title').textContent = '✏️ Edit Vehicle';
+  document.getElementById('vehicle-modal').classList.add('open');
+}
+function saveVehicle() {
+  const regno = document.getElementById('v-regno').value.trim();
+  const model = document.getElementById('v-model').value.trim();
+  if (!regno||!model) { alert('Registration No. aur Model mandatory hai!'); return; }
+  const obj = {
+    regno, model,
+    type: document.getElementById('v-type').value,
+    plate: document.getElementById('v-plate').value,
+    ins: document.getElementById('v-ins').value,
+    puc: document.getElementById('v-puc').value,
+    fit: document.getElementById('v-fit').value,
+    status: document.getElementById('v-status').value,
+    lat: Math.random()*30+10, lng: Math.random()*40+55
+  };
+  if (editVehicleId) {
+    const i = vehicles.findIndex(v => v.id === editVehicleId);
+    vehicles[i] = {...vehicles[i],...obj};
+  } else {
+    vehicles.push({id:Date.now(),...obj});
+  }
+  closeModal('vehicle-modal'); renderVehicles(); renderTracking();
+}
+function deleteVehicle(id) {
+  if (confirm('Is vehicle ko delete karna chahte ho?')) { vehicles = vehicles.filter(v => v.id !== id); renderVehicles(); renderTracking(); }
+}
+
+// ===== TRACKING =====
+function renderTracking() {
+  const q = document.getElementById('track-search').value.toLowerCase();
+  const tf = document.getElementById('track-type').value;
+  const filtered = vehicles.filter(v =>
+    (v.regno.toLowerCase().includes(q)||v.model.toLowerCase().includes(q)||v.plate.toLowerCase().includes(q)) &&
+    (!tf||v.type===tf)
+  );
+
+  // Map vehicles
+  const mapEl = document.getElementById('map-vehicles');
+  mapEl.innerHTML = filtered.map(v => {
+    const color = v.status==='On Trip'?'#34d399':v.status==='Idle'?'#f87171':'#fbbf24';
+    const emoji = v.type==='Bus'?'🚌':v.type==='Truck'?'🚛':v.type==='Bike'?'🏍️':'🚗';
+    const left = (v.lng - 50) / 50 * 80 + 10;
+    const top = (v.lat - 10) / 30 * 70 + 10;
+    return `<div class="map-vehicle" style="left:${left}%;top:${top}%;animation-delay:${Math.random()*2}s" title="${v.regno}" onclick="highlightVehicle(${v.id})">
+      <div style="font-size:22px;filter:drop-shadow(0 0 6px ${color})">${emoji}</div>
+      <div class="map-label">${v.regno}</div>
+      <div style="width:8px;height:8px;border-radius:50%;background:${color};margin:2px auto;animation:pulse 1.5s infinite"></div>
+    </div>`;
+  }).join('');
+
+  // Vehicle cards
+  document.getElementById('tracking-vehicles').innerHTML = filtered.map(v => {
+    const color = v.status==='On Trip'?'#34d399':v.status==='Idle'?'#f87171':'#fbbf24';
+    return `<div class="vehicle-mini ${v.status==='On Trip'?'active-v':''}" onclick="highlightVehicle(${v.id})">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-size:11px;color:var(--muted)">${v.type}</span>
+        <span style="width:8px;height:8px;border-radius:50%;background:${color};display:block;animation:pulse 1.5s infinite"></span>
+      </div>
+      <div style="font-weight:700;font-size:14px;color:#818cf8;margin-bottom:4px">${v.regno}</div>
+      <div style="font-size:12px;color:var(--muted)">${v.model}</div>
+      <div style="margin-top:8px"><span class="badge ${v.status==='On Trip'?'badge-green':v.status==='Idle'?'badge-red':'badge-amber'}">${v.status}</span></div>
+      <div style="font-size:10px;color:var(--muted);margin-top:6px">📍 Lat: ${v.lat.toFixed(2)}, Lng: ${v.lng.toFixed(2)}</div>
+    </div>`;
+  }).join('') || '<p style="color:var(--muted);padding:20px">Koi vehicle nahi mila</p>';
+}
+function filterTracking() { renderTracking(); }
+function refreshMap() {
+  vehicles.forEach(v => { v.lat += (Math.random()-0.5)*2; v.lng += (Math.random()-0.5)*2; });
+  renderTracking();
+}
+function highlightVehicle(id) {
+  const v = vehicles.find(x => x.id===id);
+  alert(`🚌 ${v.regno} – ${v.model}\n📍 Location: ${v.lat.toFixed(4)}°N, ${v.lng.toFixed(4)}°E\n🔵 Status: ${v.status}`);
+}
+
+// ===== ALERTS =====
+function renderAlerts() {
+  document.getElementById('alerts-container').innerHTML = alertsData.map(a => `
+    <div class="alert-item ${a.sev}" style="animation:slideIn 0.4s ease both">
+      <div style="font-size:24px">${a.sev==='critical'?'🚨':a.sev==='warning'?'⚠️':'ℹ️'}</div>
+      <div style="flex:1">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span style="font-weight:600;font-size:14px">${a.type}</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span style="font-size:11px;color:var(--muted)">${a.time}</span>
+            <span class="badge ${a.sev==='critical'?'badge-red':a.sev==='warning'?'badge-amber':'badge-blue'}">${a.sev}</span>
+          </div>
+        </div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:2px">🚌 ${a.vehicle} ${a.driver!=='—'?'| 👤 '+a.driver:''}</div>
+        <div style="font-size:13px">${a.msg}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ===== MODAL UTILS =====
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-bg').forEach(m => m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); }));
+</script>
+</body>
+</html>

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<title>Smart E-Log – GPS Sender</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);
+  min-height:100vh;font-family:'Segoe UI',sans-serif;color:#fff;
+  display:flex;flex-direction:column;align-items:center;padding:20px;
+}
+.card{
+  background:rgba(255,255,255,0.07);backdrop-filter:blur(20px);
+  border:1px solid rgba(255,255,255,0.12);border-radius:20px;
+  padding:24px;width:100%;max-width:400px;margin-bottom:16px;
+}
+h1{font-size:22px;font-weight:700;margin-bottom:4px;text-align:center}
+.sub{color:rgba(255,255,255,0.5);font-size:13px;text-align:center;margin-bottom:20px}
+label{font-size:12px;color:rgba(255,255,255,0.5);display:block;margin-bottom:6px;font-weight:500}
+select,input{
+  width:100%;background:rgba(255,255,255,0.08);border:1.5px solid rgba(255,255,255,0.15);
+  border-radius:10px;padding:12px 14px;color:#fff;font-size:15px;
+  outline:none;margin-bottom:14px;-webkit-appearance:none;
+}
+select option{background:#1c1c28}
+.btn{
+  width:100%;padding:14px;border:none;border-radius:12px;
+  font-size:16px;font-weight:700;cursor:pointer;transition:all 0.3s;
+  letter-spacing:0.4px;margin-bottom:10px;
+}
+.btn-start{background:linear-gradient(135deg,#10b981,#059669);color:#fff}
+.btn-stop{background:rgba(239,68,68,0.2);color:#f87171;border:1px solid rgba(239,68,68,0.3)}
+.btn:disabled{opacity:0.4;cursor:not-allowed}
+.status-box{
+  background:rgba(0,0,0,0.3);border-radius:12px;padding:16px;
+  font-size:13px;line-height:1.8;
+}
+.dot{
+  display:inline-block;width:10px;height:10px;border-radius:50%;
+  margin-right:6px;vertical-align:middle;
+}
+.dot.green{background:#10b981;box-shadow:0 0 8px #10b981;animation:pulse 1.5s infinite}
+.dot.red{background:#ef4444}
+.dot.amber{background:#f59e0b}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.coord{font-family:monospace;color:#818cf8;font-size:14px;font-weight:600}
+.ping-log{
+  background:rgba(0,0,0,0.4);border-radius:10px;padding:10px 14px;
+  margin-top:10px;font-size:12px;color:rgba(255,255,255,0.5);
+  max-height:120px;overflow-y:auto;font-family:monospace;
+}
+.server-inp-wrap{display:flex;gap:8px}
+.server-inp-wrap input{margin-bottom:0;flex:1}
+.server-inp-wrap .btn{width:auto;padding:12px 16px;margin-bottom:0;font-size:13px;background:rgba(99,102,241,0.3);color:#818cf8}
+</style>
+</head>
+<body>
+
+<div style="text-align:center;margin-bottom:20px">
+  <div style="font-size:40px;margin-bottom:8px">📱</div>
+  <h1>GPS Sender</h1>
+  <p class="sub">Is phone ko vehicle ke GPS tracker ki tarah use karo</p>
+</div>
+
+<div class="card">
+  <label>Server IP Address (tumhara laptop ka IP)</label>
+  <div class="server-inp-wrap">
+    <input type="text" id="server-ip" placeholder="192.168.1.X" value="192.168.1.1"/>
+    <button class="btn" onclick="testConnection()">Test</button>
+  </div>
+
+  <label>Vehicle select karo</label>
+  <select id="vehicle-select">
+    <option value="1">BR01PU1001 – Tata Starbus</option>
+    <option value="2">BR01PU1002 – Ashok Leyland</option>
+    <option value="3">BR01PU1003 – Eicher Skyline</option>
+    <option value="4">BR01PU1004 – Force Traveller</option>
+    <option value="5">BR01PU1005 – Tempo Traveller</option>
+    <option value="6">BR01PU1006 – Mahindra Bolero</option>
+    <option value="7">BR01PU1007 – Maruti Ertiga</option>
+    <option value="8">BR01PU1008 – Toyota Innova</option>
+  </select>
+
+  <label>GPS update interval</label>
+  <select id="interval-select">
+    <option value="3000">Har 3 second</option>
+    <option value="5000" selected>Har 5 second</option>
+    <option value="10000">Har 10 second</option>
+  </select>
+
+  <button class="btn btn-start" id="btn-start" onclick="startTracking()">🚀 GPS Tracking Start Karo</button>
+  <button class="btn btn-stop" id="btn-stop" onclick="stopTracking()" disabled>⏹ Stop Tracking</button>
+</div>
+
+<div class="card">
+  <div class="status-box">
+    <div><span class="dot" id="status-dot" style="background:#888"></span><span id="status-text">Ready – Start karo</span></div>
+    <div style="margin-top:10px">
+      📍 Latitude: <span class="coord" id="lat-val">—</span><br/>
+      📍 Longitude: <span class="coord" id="lng-val">—</span><br/>
+      🎯 Accuracy: <span id="acc-val">—</span><br/>
+      💨 Speed: <span id="spd-val">—</span><br/>
+      📤 Pings sent: <span id="ping-count">0</span>
+    </div>
+  </div>
+  <div class="ping-log" id="ping-log">Logs yahan dikhenge...</div>
+</div>
+
+<script>
+let trackingInterval = null;
+let pingCount = 0;
+
+function getServerUrl() {
+  const ip = document.getElementById('server-ip').value.trim();
+  return `http://${ip}:5000`;
+}
+
+async function testConnection() {
+  const url = getServerUrl();
+  addLog(`Testing ${url}...`);
+  try {
+    const res = await fetch(`${url}/api/vehicles`, { signal: AbortSignal.timeout(3000) });
+    if (res.ok) {
+      addLog('✅ Server se connection successful!');
+      setStatus('green', 'Server connected!');
+    } else {
+      addLog('❌ Server ne error diya: ' + res.status);
+    }
+  } catch (e) {
+    addLog('❌ Connection fail: ' + e.message);
+    addLog('💡 Ensure karo server chal raha hai aur same WiFi pe ho');
+  }
+}
+
+function startTracking() {
+  if (!navigator.geolocation) {
+    addLog('❌ Yeh browser GPS support nahi karta');
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    () => {
+      document.getElementById('btn-start').disabled = true;
+      document.getElementById('btn-stop').disabled = false;
+      setStatus('amber', 'GPS dhundh raha hai...');
+      addLog('✅ GPS permission mili, tracking shuru...');
+
+      const interval = parseInt(document.getElementById('interval-select').value);
+
+      trackingInterval = setInterval(() => {
+        navigator.geolocation.getCurrentPosition(
+          sendLocation,
+          handleGPSError,
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+        );
+      }, interval);
+
+      // First ping immediately
+      navigator.geolocation.getCurrentPosition(sendLocation, handleGPSError, {
+        enableHighAccuracy: true, timeout: 10000, maximumAge: 0
+      });
+    },
+    (err) => {
+      addLog('❌ GPS permission denied: ' + err.message);
+      addLog('💡 Browser settings mein location allow karo');
+    }
+  );
+}
+
+function stopTracking() {
+  clearInterval(trackingInterval);
+  trackingInterval = null;
+  document.getElementById('btn-start').disabled = false;
+  document.getElementById('btn-stop').disabled = true;
+  setStatus('red', 'Tracking stopped');
+  addLog('⏹ Tracking band kiya gaya');
+}
+
+async function sendLocation(position) {
+  const { latitude, longitude, accuracy, speed } = position.coords;
+  const vehicleId = document.getElementById('vehicle-select').value;
+  const speedKmh = speed ? Math.round(speed * 3.6) : 0;
+
+  // Update UI
+  document.getElementById('lat-val').textContent = latitude.toFixed(6);
+  document.getElementById('lng-val').textContent = longitude.toFixed(6);
+  document.getElementById('acc-val').textContent = accuracy ? `±${Math.round(accuracy)}m` : '—';
+  document.getElementById('spd-val').textContent = speedKmh + ' km/h';
+  setStatus('green', 'Live tracking active ✅');
+
+  // Send to server
+  try {
+    const res = await fetch(`${getServerUrl()}/api/location`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ vehicleId: parseInt(vehicleId), lat: latitude, lng: longitude, speed: speedKmh, accuracy })
+    });
+
+    if (res.ok) {
+      pingCount++;
+      document.getElementById('ping-count').textContent = pingCount;
+      addLog(`✅ Ping #${pingCount}: ${latitude.toFixed(5)}, ${longitude.toFixed(5)} | ${speedKmh} km/h`);
+    } else {
+      addLog(`❌ Server error: ${res.status}`);
+    }
+  } catch (e) {
+    addLog(`❌ Send fail: ${e.message}`);
+    setStatus('amber', 'Server se disconnected');
+  }
+}
+
+function handleGPSError(err) {
+  addLog('⚠️ GPS error: ' + err.message);
+  setStatus('amber', 'GPS signal weak...');
+}
+
+function setStatus(color, text) {
+  const dot = document.getElementById('status-dot');
+  dot.className = 'dot ' + color;
+  document.getElementById('status-text').textContent = text;
+}
+
+function addLog(msg) {
+  const log = document.getElementById('ping-log');
+  const time = new Date().toLocaleTimeString('hi-IN');
+  log.innerHTML = `[${time}] ${msg}\n` + log.innerHTML;
+  if (log.children.length > 20) log.removeChild(log.lastChild);
+}
+</script>
+</body>
+</html>
