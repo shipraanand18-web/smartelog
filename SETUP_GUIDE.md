@@ -26,7 +26,12 @@ Terminal mein dikhega:
 🚀 Smart E-Log Backend running on port 5000
 📡 WebSocket ready for real-time GPS
 ```
+2nd terminal per ye karo:
 
+cd C:\Users\nishu\OneDrive\Desktop\smartelog
+git add .
+git commit -m "fix start script"
+git push
 ---
 
 ## 🖥️ Step 2: Dashboard Open Karo (Laptop Browser)
